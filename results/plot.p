@@ -5,8 +5,8 @@ set xtic auto
 set ytic auto
 set grid xtic
 set grid ytic
-set ylabel "Abs. diff. (eigenvalue)" enhanced
-set xlabel "Cell size (cm)" enhanced
+set ylabel "delta-k" enhanced
+set xlabel "{/Symbol t} (mfp)" enhanced
 set format y "10^{%L}"
 set format x "10^{%L}"
 set title "LC (c = 0.99)"

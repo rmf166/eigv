@@ -12,8 +12,8 @@ do
     echo 'set ytic auto' >> plot.p
     echo 'set grid xtic' >> plot.p
     echo 'set grid ytic' >> plot.p
-    echo 'set ylabel "Abs. diff. (eigenvalue)" enhanced' >> plot.p
-    echo 'set xlabel "Cell size (cm)" enhanced' >> plot.p
+    echo 'set ylabel "delta-k" enhanced' >> plot.p
+    echo 'set xlabel "{/Symbol t} (mfp)" enhanced' >> plot.p
     echo 'set format y "10^{%L}"' >> plot.p
     echo 'set format x "10^{%L}"' >> plot.p
     if [ ${c} == "1" ]; then

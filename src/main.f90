@@ -37,7 +37,7 @@
         integer(4)                   :: nx
         real(kind=kr)                :: c(cmax)
         real(kind=kr)                :: tau(tmax)
-        real(kind=kr), parameter     :: fac=1000.0_kr
+        real(kind=kr), parameter     :: fac=100.0_kr
 
         integer(4)                   :: xn
         integer(4)                   :: nxref
@@ -93,7 +93,7 @@
               call cpu_time(start)
               call solve_slab(sol,c(s),tauref,n,kmax,nxref,eigv)
               call cpu_time(finish)
-              write(0,'(2a,2(a,f6.3),a,i3,a,f6.3,a)') &
+              write(0,'(2a,2(a,f6.3),a,i3,a,f8.3,a)') &
                 ' Finished reference solution for ', solopt(sol),' scheme, c=',c(s),&
                 ', tau=', tau(t), ' and xn =' , xn, ' in ', (finish-start)/60.0,' minutes.'
               eig_ref(s,t,xn)=eigv
@@ -108,7 +108,7 @@
                 call cpu_time(start)
                 call solve_slab(sol,c(s),tau(t),n,kmax,nxx(xn),eigv)
                 call cpu_time(finish)
-                write(0,'(2a,2(a,f6.3),a,i3,a,f6.3,a)') &
+                write(0,'(2a,2(a,f6.3),a,i3,a,f8.3,a)') &
                   ' Finished numerical solution for ', solopt(sol),' scheme, c=',c(s),&
                   ', tau=', tau(t), ' and xn =' , xn, ' in ', (finish-start)/60.0,' minutes.'
                 eig_num(sol,s,t,xn)=eigv
