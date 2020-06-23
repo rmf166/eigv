@@ -32,30 +32,50 @@
         integer(4)                   :: t
         integer(4),    parameter     :: n=12
         integer(4),    parameter     :: kmax=100000
-        integer(4),    parameter     :: cmax=4
+        integer(4),    parameter     :: cmax=3
         integer(4),    parameter     :: tmax=8
         integer(4)                   :: nx
         real(kind=kr)                :: c(cmax)
         real(kind=kr)                :: tau(tmax)
+        real(kind=kr), parameter     :: fac=1000.0_kr
 
         integer(4)                   :: xn
-        integer(4),    parameter     :: xnmax=6
-        integer(4),    parameter     :: xnref=10
+        integer(4)                   :: nxref
+        integer(4),    parameter     :: xnmax=5
+        integer(4)                   :: nxx(xnmax)
+        real(4)                      :: start
+        real(4)                      :: finish
+        real(kind=kr)                :: tauref
         real(kind=kr)                :: eigv
-        real(kind=kr)                :: eig_ref(cmax,tmax)
+        real(kind=kr)                :: eig_ref(    cmax,tmax,xnmax)
+        real(kind=kr)                :: eig_num(0:3,cmax,tmax,xnmax)
         real(kind=kr)                :: eig_err(0:3,cmax,tmax,xnmax)
+        character(1)                 :: cs
+        character(2)                 :: solopt (0:3)=(/'DD','SC','LD','LC'/)
         character(13)                :: datafile
 
-        ! some parameters
+        ! initialize
+
+        tau=0.0_kr
+        eig_ref=0.0_kr
+        eig_num=0.0_kr
+        eig_err=0.0_kr
+
+        ! set parameters
 
         c(1)=0.80_kr
         c(2)=0.90_kr
         c(3)=0.99_kr
-        c(4)=0.9999_kr
 
         tau(1)=8.0_kr
         do t=2,tmax
           tau(t)=tau(t-1)*0.5_kr
+        enddo
+
+        nx=5
+        do xn=1,xnmax
+          nxx(xn)=nx
+          nx=2*nx
         enddo
 
         ! numerical solutions
@@ -63,58 +83,84 @@
         !$ call omp_set_num_threads(n/2)
 
         sol=0
-        nx=1
-        do xn=1, xnref
-          nx=2*nx
-        enddo
         do s=1,cmax
           do t=1,tmax
-            call solve_slab(sol,c(s),tau(t),n,kmax,nx,eigv)
-            eig_ref(s,t)=eigv
-print *, 'c',c(s),'tau',tau(t),'eig',eigv
+            do xn=1,xnmax
+              tauref=tau(t)/fac
+              nxref=nxx(xn)*tau(t)/tauref
+              if (nxref <= 0) stop ' Parameter NXREF less or equal to zero.'
+              tauref=nxx(xn)*tau(t)/nxref
+              call cpu_time(start)
+              call solve_slab(sol,c(s),tauref,n,kmax,nxref,eigv)
+              call cpu_time(finish)
+              write(0,'(2a,2(a,f6.3),a,i3,a,f6.3,a)') &
+                ' Finished reference solution for ', solopt(sol),' scheme, c=',c(s),&
+                ', tau=', tau(t), ' and xn =' , xn, ' in ', (finish-start)/60.0,' minutes.'
+              eig_ref(s,t,xn)=eigv
+            enddo
           enddo
         enddo
 
         do sol=0,3
           do s=1,cmax
             do t=1,tmax
-              nx=1
               do xn=1,xnmax
-                call solve_slab(sol,c(s),tau(t),n,kmax,nx,eigv)
-                eig_err(sol,s,t,xn)=abs(eigv-eig_ref(s,t))
-                nx=2*nx
+                call cpu_time(start)
+                call solve_slab(sol,c(s),tau(t),n,kmax,nxx(xn),eigv)
+                call cpu_time(finish)
+                write(0,'(2a,2(a,f6.3),a,i3,a,f6.3,a)') &
+                  ' Finished numerical solution for ', solopt(sol),' scheme, c=',c(s),&
+                  ', tau=', tau(t), ' and xn =' , xn, ' in ', (finish-start)/60.0,' minutes.'
+                eig_num(sol,s,t,xn)=eigv
+                eig_err(sol,s,t,xn)=abs(eigv-eig_ref(s,t,xn))
               enddo
             enddo
           enddo
         enddo
 
-      ! write eigenvalue difference into file
+      ! write results into files
 
-        datafile='eig-table.dat'
+        datafile='eig-ref.dat'
+        open(unit=1,file=datafile,action='write',status='unknown')
+        do s=1,cmax
+          write(1,*) ' DD'
+          write(1,'(a,es12.5)') '  c',c(s)
+          write(1,*)
+          write(1,'(12x,40(i12))') (nxx(xn),xn=1,xnmax)
+          do t=1,tmax
+            write(1,'(40(es12.5))') tau(t),(eig_ref(s,t,xn),xn=1,xnmax)
+          enddo
+          write(1,*)
+        enddo
+        close(1)
+
+        datafile='eig-num.dat'
         open(unit=1,file=datafile,action='write',status='unknown')
         do sol=0,3
-          if (sol == 0) then
-            write(1,*) ' DD'
-          elseif (sol == 1) then
-            write(1,*) ' SC'
-          elseif (sol == 2) then
-            write(1,*) ' LD'
-          elseif (sol == 3) then
-            write(1,*) ' LC'
-          endif
+          write(1,'(a)') solopt(sol)
           do s=1,cmax
             write(1,'(a,es12.5)') '  c',c(s)
             write(1,*)
-            write(1,'(4x,10(es12.5))') (tau(t),t=1,tmax)
-            nx=1
-            do xn=1,xnmax
-              write(1,'(i4,10(es12.5))') nx,(eig_err(sol,s,t,xn),t=1,tmax)
-              nx=2*nx
+            write(1,'(12x,40(i12))') (nxx(xn),xn=1,xnmax)
+            do t=1,tmax
+              write(1,'(40(es12.5))') tau(t),(eig_num(sol,s,t,xn),xn=1,xnmax)
             enddo
             write(1,*)
           enddo
         enddo
         close(1)
+
+        do sol=0,3
+          do s=1,cmax
+            write(cs,'(i1)') s
+            datafile=solopt(sol) // trim(adjustl(cs)) // '-num.dat'
+            open(unit=1,file=datafile,action='write',status='unknown')
+            do t=1,tmax
+              write(1,'(40(es12.5))') tau(t),(eig_err(sol,s,t,xn),xn=1,xnmax)
+            enddo
+            close(1)
+          enddo
+        enddo
 
       end subroutine drive_larsen
 
@@ -197,7 +243,7 @@ print *, 'c',c(s),'tau',tau(t),'eig',eigv
 
         fis=1.0_kr
         eig=1.0_kr
-        eps=1.0e-06
+        eps=1.0e-10
 
         do i=1,kmax
           fis(1)=0.0_kr
